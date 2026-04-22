@@ -24,10 +24,6 @@ def _voice_hint_text() -> str:
     return (config.VOICE_OPTIONS_HINT or "").strip()
 
 
-def _style_hint_text() -> str:
-    return (config.STYLE_HINT or "").strip()
-
-
 def _audio_tag_examples_text() -> str:
     return (config.AUDIO_TAG_EXAMPLES or "").strip()
 
@@ -54,13 +50,10 @@ def _normalize_base_url(base_url: str) -> str:
     return url
 
 
-def _build_messages(text: str, style: str = "", user_message: str = "") -> list[dict[str, str]]:
+def _build_messages(text: str, user_message: str = "") -> list[dict[str, str]]:
     assistant_text = text.strip()
     if not assistant_text:
         raise ValueError("待合成文本不能为空。")
-    effective_style = style.strip()
-    if effective_style:
-        assistant_text = f"<style>{effective_style}</style>{assistant_text}"
 
     messages: list[dict[str, str]] = []
     effective_user_message = user_message.strip()
@@ -92,7 +85,7 @@ def _parse_chat_target(chat_key: str) -> tuple[str, str]:
     return chat_type, chat_id
 
 
-async def _synthesize_audio(text: str, style: str = "", voice: str = "", user_message: str = "") -> bytes:
+async def _synthesize_audio(text: str, voice: str = "", user_message: str = "") -> bytes:
     api_key = (config.MIMO_API_KEY or "").strip()
     if not api_key:
         raise ValueError("请先在插件配置中填写 MIMO_API_KEY。")
@@ -107,7 +100,6 @@ async def _synthesize_audio(text: str, style: str = "", voice: str = "", user_me
         "model": (config.MODEL or "mimo-v2-tts").strip(),
         "messages": _build_messages(
             text=text,
-            style=style or config.DEFAULT_STYLE,
             user_message=user_message or config.DEFAULT_USER_MESSAGE,
         ),
         "audio": {
@@ -168,7 +160,6 @@ async def _send_audio_message(_ctx: AgentCtx, audio_bytes: bytes) -> str:
 async def _run_tts_and_send(
     _ctx: AgentCtx,
     content: str,
-    style: str = "",
     voice: str = "",
     user_message: str = "",
 ) -> str:
@@ -178,7 +169,6 @@ async def _run_tts_and_send(
 
     audio_bytes = await _synthesize_audio(
         text=text,
-        style=style,
         voice=voice,
         user_message=user_message,
     )
@@ -190,12 +180,11 @@ async def _run_tts_and_send(
 @plugin.mount_sandbox_method(
     SandboxMethodType.BEHAVIOR,
     name="发送MiMo语音",
-    description="调用 MiMo TTS 把文本合成为语音，并发送到当前会话。支持 AI 自行切换音色、风格，并在正文中直接编写细粒度音频标签。",
+    description="调用 MiMo TTS 把文本合成为语音，并发送到当前会话。支持 AI 自行切换音色，并在正文中直接编写细粒度音频标签。",
 )
 async def send_mimo_voice(
     _ctx: AgentCtx,
     content: str,
-    style: str = "",
     voice: str = "",
     user_message: str = "",
 ) -> str:
@@ -203,23 +192,20 @@ async def send_mimo_voice(
 
     Args:
         content (str): 要合成的正文内容。可以直接包含细粒度音频标签，例如（小声）、（沉默片刻）、（咳嗽）、（提高音量喊话）等。
-        style (str): 可选语音风格，会拼接为 <style>风格</style> 前缀，用于控制整体风格。
         voice (str): 可选音色，留空则使用插件默认音色。常用值：mimo_default、default_zh、default_en。
-        user_message (str): 可选 user 角色消息，用于辅助调整语气。
+        user_message (str): 必填 user 角色消息，用于辅助调整语气。
 
     Returns:
         str: 发送结果说明。
 
     Example:
         send_mimo_voice(content="今天辛苦啦，早点休息。")
-        send_mimo_voice(content="明天就是周五了", style="开心", voice="default_zh")
         send_mimo_voice(content="（紧张，深呼吸）呼……冷静，冷静。不就是一个面试吗……（小声）哎呀，领带歪没歪？", voice="default_zh")
     """
 
     sent_path = await _run_tts_and_send(
         _ctx,
         content=content,
-        style=style,
         voice=voice,
         user_message=user_message,
     )
@@ -229,19 +215,16 @@ async def send_mimo_voice(
 @plugin.mount_prompt_inject_method(name="mimo_tts_prompt")
 async def mimo_tts_prompt(_ctx: AgentCtx) -> str:
     voice_hint = _voice_hint_text() or "mimo_default / default_zh / default_en"
-    style_hint = _style_hint_text() or "开心、悲伤、生气、悄悄话、东北话、粤语、唱歌"
     audio_tag_examples = _audio_tag_examples_text()
 
     return (
         "你可以在需要“读出来”“配音”“语音回复”“情绪化朗读”时主动调用 `发送MiMo语音`。\n"
         "使用规则：\n"
         "1. 你可以自行选择 `voice`，而不是固定使用默认音色。\n"
-        "2. 你可以自行填写 `style` 来控制整体风格。\n"
-        "3. 你可以直接把细粒度音频标签写进 `content` 正文，标签会原样参与语音合成。\n"
-        "4. 中文场景优先考虑 `default_zh` 或 `mimo_default`，英文场景优先考虑 `default_en`。\n"
-        "5. 如果用户强调情绪、演绎、停顿、呼吸、耳语、喊话、咳嗽等表现，请优先在 `content` 中加入音频标签，而不是只改 `style`。\n\n"
+        "2. 你可以直接把细粒度音频标签写进 `content` 正文，标签会原样参与语音合成。\n"
+        "3. 中文场景优先考虑 `default_zh` 或 `mimo_default`，英文场景优先考虑 `default_en`。\n"
+        "4. 如果用户强调情绪、演绎、停顿、呼吸、耳语、喊话、咳嗽等表现，请直接在 `content` 中加入音频标签。\n\n"
         f"可用音色参考：\n{voice_hint}\n\n"
-        f"整体风格参考：\n{style_hint}\n\n"
         f"细粒度音频标签示例：\n{audio_tag_examples}"
     )
 
@@ -250,7 +233,7 @@ async def mimo_tts_prompt(_ctx: AgentCtx) -> str:
     name="mimo_tts_speak",
     description="将文本合成为 MiMo 语音并发送到当前会话",
     aliases=["mimo-tts-speak"],
-    usage="mimo_tts_speak [风格|]文本",
+    usage="mimo_tts_speak 文本",
     permission=CommandPermission.USER,
     category="语音",
 )
@@ -260,27 +243,19 @@ async def mimo_tts_speak_cmd(
 ) -> CommandResponse:
     raw = (args_str or "").strip()
     if not raw:
-        return CmdCtl.failed("用法: mimo_tts_speak [风格|]文本")
-
-    if "|" in raw:
-        style, content = raw.split("|", 1)
-    else:
-        style, content = "", raw
+        return CmdCtl.failed("用法: mimo_tts_speak 文本")
 
     ctx = await AgentCtx.create_by_chat_key(context.chat_key)
     try:
         await _run_tts_and_send(
             ctx,
-            content=content,
-            style=style,
+            content=raw,
         )
     except Exception as exc:  # noqa: BLE001
         plugin.logger.exception(f"[{context.chat_key}] MiMo 命令发送失败: {exc}")
         return CmdCtl.failed(f"MiMo 语音发送失败: {exc}")
 
     effective_voice = (config.DEFAULT_VOICE or "").strip() or "未配置"
-    if style.strip():
-        return CmdCtl.success(f"MiMo 语音已发送，音色: {effective_voice}，风格: {style.strip()}")
     return CmdCtl.success(f"MiMo 语音已发送，音色: {effective_voice}")
 
 
@@ -296,17 +271,15 @@ async def mimo_tts_help_cmd(context: CommandExecutionContext) -> CommandResponse
     return CmdCtl.success(
         "MiMo TTS 插件用法:\n"
         "/mimo_tts_speak 文本\n"
-        "/mimo_tts_speak 开心|明天就是周五了\n\n"
+        "/mimo_tts_speak [小声,温柔]明天见\n\n"
         "AI 能力:\n"
         "- AI 可以自行切换 voice\n"
-        "- AI 可以自行填写 style\n"
-        "- AI 可以直接在正文里写（小声）（沉默片刻）（咳嗽）这类音频标签\n\n"
+        "- AI 可以直接在正文里写 [小声][沉默片刻][咳嗽] 这类音频标签\n"
+        "- 不再使用整体风格 style，避免和音频标签冲突\n\n"
         "主要配置项:\n"
         "- MIMO_API_KEY: MiMo 平台 API Key\n"
         "- DEFAULT_VOICE: 默认音色，如 mimo_default/default_zh/default_en\n"
         "- VOICE_OPTIONS_HINT: 音色说明，提供给 AI 参考\n"
-        "- DEFAULT_STYLE: 默认风格，可留空\n"
-        "- STYLE_HINT: style 参数提示\n"
         "- AUDIO_TAG_EXAMPLES: 音频标签示例，注入给 AI 参考\n"
         "- DEFAULT_USER_MESSAGE: 可选 user 角色提示\n"
         "- AUDIO_FORMAT: 建议使用 wav"
