@@ -37,10 +37,36 @@ class MiMoTTSConfig(ConfigBase):
         title="默认音色",
         description="默认音色，可选 mimo_default/default_zh/default_en。",
     )
+    VOICE_OPTIONS_HINT: str = Field(
+        default=(
+            "mimo_default: 通用默认音色\n"
+            "default_zh: 中文女声\n"
+            "default_en: 英文女声"
+        ),
+        title="音色说明",
+        description="提示 AI 和管理员可用音色及适用场景。",
+    )
     DEFAULT_STYLE: str = Field(
         default="",
         title="默认风格",
         description="可选。会拼接为 <style>风格</style> 放在待合成文本前。",
+    )
+    STYLE_HINT: str = Field(
+        default="可选整体风格示例：开心、悲伤、生气、悄悄话、夹子音、东北话、粤语、唱歌。",
+        title="风格说明",
+        description="用于提示 AI 如何填写 style 参数。",
+    )
+    AUDIO_TAG_EXAMPLES: str = Field(
+        default=(
+            "可直接把细粒度音频标签写进 content 正文中，例如：\n"
+            "（紧张，深呼吸）呼……冷静，冷静。不就是一个面试吗……（语速加快，碎碎念）自我介绍已经背了五十遍了，应该没问题的。加油，你可以的……（小声）哎呀，领带歪没歪？\n"
+            "（极其疲惫，有气无力）师傅……到地方了叫我一声……（长叹一口气）我先眯一会儿，这班加得我魂儿都要散了。\n"
+            "如果我当时……（沉默片刻）哪怕再坚持一秒钟，结果是不是就不一样了？（苦笑）呵，没如果了。\n"
+            "（寒冷导致的急促呼吸）呼——呼——这、这大兴安岭的雪……（咳嗽）简直能把人骨头冻透了……别、别停下，走，快走。\n"
+            "（提高音量喊话）大姐！这鱼新鲜着呢！早上刚捞上来的！哎！那个谁，别乱翻，压坏了你赔啊？！"
+        ),
+        title="音频标签示例",
+        description="注入给 AI 的细粒度音频标签示例。",
     )
     DEFAULT_USER_MESSAGE: str = Field(
         default="",

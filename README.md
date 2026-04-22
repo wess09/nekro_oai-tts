@@ -18,6 +18,9 @@ mimo_tts/
 
 - 提供一个 AI 可调用的行为方法 `发送MiMo语音`
 - 提供测试命令 `/mimo_tts_speak [风格|]文本`
+- 支持 AI 自行修改音色
+- 支持 AI 自行填写整体风格 `style`
+- 支持 AI 直接在正文里编写细粒度音频标签
 - 支持默认音色、默认风格、默认 user 提示
 - 支持系统代理访问 MiMo API
 
@@ -27,7 +30,10 @@ mimo_tts/
 - `BASE_URL`: API 基础地址，默认 `https://api.xiaomimimo.com/v1`
 - `MODEL`: 默认 `mimo-v2-tts`
 - `DEFAULT_VOICE`: 默认音色，默认 `mimo_default`
+- `VOICE_OPTIONS_HINT`: 可用音色说明，会注入给 AI 参考
 - `DEFAULT_STYLE`: 默认风格，自动转成 `<style>...</style>`
+- `STYLE_HINT`: 风格提示，会注入给 AI 参考
+- `AUDIO_TAG_EXAMPLES`: 细粒度音频标签示例，会注入给 AI 参考
 - `DEFAULT_USER_MESSAGE`: 可选的 user 角色提示
 - `AUDIO_FORMAT`: 默认 `wav`
 - `REQUEST_TIMEOUT`: 请求超时秒数
@@ -46,9 +52,20 @@ mimo_tts/
 参数：
 
 - `content`: 必填，待合成文本
+- `content` 支持直接写细粒度音频标签，例如 `（小声）`、`（沉默片刻）`、`（咳嗽）`
 - `style`: 可选，风格
 - `voice`: 可选，音色
 - `user_message`: 可选，额外 user 角色提示
+
+## 推荐写法
+
+- 直接切音色：`voice="default_zh"`
+- 加整体风格：`style="开心"`
+- 在正文中写音频标签：
+
+```text
+（紧张，深呼吸）呼……冷静，冷静。不就是一个面试吗……（语速加快，碎碎念）自我介绍已经背了五十遍了，应该没问题的。加油，你可以的……（小声）哎呀，领带歪没歪？
+```
 
 ## 使用说明
 

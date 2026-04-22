@@ -20,6 +20,18 @@ from nekro_agent.api.schemas import AgentCtx
 from .plugin import config, plugin
 
 
+def _voice_hint_text() -> str:
+    return (config.VOICE_OPTIONS_HINT or "").strip()
+
+
+def _style_hint_text() -> str:
+    return (config.STYLE_HINT or "").strip()
+
+
+def _audio_tag_examples_text() -> str:
+    return (config.AUDIO_TAG_EXAMPLES or "").strip()
+
+
 def _get_proxy() -> str | None:
     if not config.ENABLE_PROXY_ACCESS:
         return None
@@ -178,7 +190,7 @@ async def _run_tts_and_send(
 @plugin.mount_sandbox_method(
     SandboxMethodType.BEHAVIOR,
     name="发送MiMo语音",
-    description="调用 MiMo TTS 把文本合成为语音，并发送到当前会话。",
+    description="调用 MiMo TTS 把文本合成为语音，并发送到当前会话。支持 AI 自行切换音色、风格，并在正文中直接编写细粒度音频标签。",
 )
 async def send_mimo_voice(
     _ctx: AgentCtx,
@@ -190,9 +202,9 @@ async def send_mimo_voice(
     """发送 MiMo 语音消息。
 
     Args:
-        content (str): 要合成的正文内容。
-        style (str): 可选语音风格，会拼接为 <style>风格</style> 前缀。
-        voice (str): 可选音色，留空则使用插件默认音色。
+        content (str): 要合成的正文内容。可以直接包含细粒度音频标签，例如（小声）、（沉默片刻）、（咳嗽）、（提高音量喊话）等。
+        style (str): 可选语音风格，会拼接为 <style>风格</style> 前缀，用于控制整体风格。
+        voice (str): 可选音色，留空则使用插件默认音色。常用值：mimo_default、default_zh、default_en。
         user_message (str): 可选 user 角色消息，用于辅助调整语气。
 
     Returns:
@@ -201,6 +213,7 @@ async def send_mimo_voice(
     Example:
         send_mimo_voice(content="今天辛苦啦，早点休息。")
         send_mimo_voice(content="明天就是周五了", style="开心", voice="default_zh")
+        send_mimo_voice(content="（紧张，深呼吸）呼……冷静，冷静。不就是一个面试吗……（小声）哎呀，领带歪没歪？", voice="default_zh")
     """
 
     sent_path = await _run_tts_and_send(
@@ -211,6 +224,26 @@ async def send_mimo_voice(
         user_message=user_message,
     )
     return f"已发送 MiMo 语音消息，音频文件路径: {sent_path}"
+
+
+@plugin.mount_prompt_inject_method(name="mimo_tts_prompt")
+async def mimo_tts_prompt(_ctx: AgentCtx) -> str:
+    voice_hint = _voice_hint_text() or "mimo_default / default_zh / default_en"
+    style_hint = _style_hint_text() or "开心、悲伤、生气、悄悄话、东北话、粤语、唱歌"
+    audio_tag_examples = _audio_tag_examples_text()
+
+    return (
+        "你可以在需要“读出来”“配音”“语音回复”“情绪化朗读”时主动调用 `发送MiMo语音`。\n"
+        "使用规则：\n"
+        "1. 你可以自行选择 `voice`，而不是固定使用默认音色。\n"
+        "2. 你可以自行填写 `style` 来控制整体风格。\n"
+        "3. 你可以直接把细粒度音频标签写进 `content` 正文，标签会原样参与语音合成。\n"
+        "4. 中文场景优先考虑 `default_zh` 或 `mimo_default`，英文场景优先考虑 `default_en`。\n"
+        "5. 如果用户强调情绪、演绎、停顿、呼吸、耳语、喊话、咳嗽等表现，请优先在 `content` 中加入音频标签，而不是只改 `style`。\n\n"
+        f"可用音色参考：\n{voice_hint}\n\n"
+        f"整体风格参考：\n{style_hint}\n\n"
+        f"细粒度音频标签示例：\n{audio_tag_examples}"
+    )
 
 
 @plugin.mount_command(
@@ -264,10 +297,17 @@ async def mimo_tts_help_cmd(context: CommandExecutionContext) -> CommandResponse
         "MiMo TTS 插件用法:\n"
         "/mimo_tts_speak 文本\n"
         "/mimo_tts_speak 开心|明天就是周五了\n\n"
+        "AI 能力:\n"
+        "- AI 可以自行切换 voice\n"
+        "- AI 可以自行填写 style\n"
+        "- AI 可以直接在正文里写（小声）（沉默片刻）（咳嗽）这类音频标签\n\n"
         "主要配置项:\n"
         "- MIMO_API_KEY: MiMo 平台 API Key\n"
         "- DEFAULT_VOICE: 默认音色，如 mimo_default/default_zh/default_en\n"
+        "- VOICE_OPTIONS_HINT: 音色说明，提供给 AI 参考\n"
         "- DEFAULT_STYLE: 默认风格，可留空\n"
+        "- STYLE_HINT: style 参数提示\n"
+        "- AUDIO_TAG_EXAMPLES: 音频标签示例，注入给 AI 参考\n"
         "- DEFAULT_USER_MESSAGE: 可选 user 角色提示\n"
         "- AUDIO_FORMAT: 建议使用 wav"
     )
