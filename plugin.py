@@ -6,7 +6,7 @@ plugin = NekroPlugin(
     name="MiMo 语音合成",
     module_name="mimo_tts",
     description="调用 MiMo TTS 接口合成语音，并发送到当前会话。",
-    version="0.1.0",
+    version="0.1.1",
     author="AzurLane",
     url="https://api.xiaomimimo.com/",
     support_adapter=["onebot_v11"],
@@ -28,23 +28,38 @@ class MiMoTTSConfig(ConfigBase):
         description="MiMo OpenAI 兼容接口基础地址，默认带 /v1。",
     )
     MODEL: str = Field(
-        default="mimo-v2-tts",
+        default="mimo-v2.5-tts",
         title="模型",
-        description="当前默认支持 mimo-v2-tts。",
+        description="支持 mimo-v2.5-tts, mimo-v2.5-tts-voicedesign, mimo-v2.5-tts-voiceclone。",
     )
     DEFAULT_VOICE: str = Field(
-        default="mimo_default",
+        default="冰糖",
         title="默认音色",
-        description="默认音色，可选 mimo_default/default_zh/default_en。",
+        description="mimo-v2.5-tts 模型可用。 voiceclone 和 voicedesign 模型无需填写。",
+    )
+    VOICE_CLONE_SOURCE: str = Field(
+        default="",
+        title="音色克隆源 (Data URI)",
+        description="使用 mimo-v2.5-tts-voiceclone 模型时，在此处填写音频的 Base64 Data URI。格式: data:audio/mpeg;base64,UklGRi...",
     )
     VOICE_OPTIONS_HINT: str = Field(
         default=(
-            "mimo_default: 通用默认音色\n"
-            "default_zh: 中文女声\n"
-            "default_en: 英文女声"
+            "冰糖: 中文女声\n"
+            "茉莉: 中文女声\n"
+            "苏打: 中文男声\n"
+            "白桦: 中文男声\n"
+            "Mia: 英文女声\n"
+            "Chloe: 英文女声\n"
+            "Milo: 英文男声\n"
+            "Dean: 英文男声"
         ),
         title="音色说明",
         description="提示 AI 和管理员可用音色及适用场景。",
+    )
+    DEFAULT_USER_MESSAGE: str = Field(
+        default="",
+        title="默认 User Message",
+        description="调用 mimo-v2.5-tts 模型时，用于控制风格的默认 user 角色消息。",
     )
     AUDIO_TAG_EXAMPLES: str = Field(
         default=(
